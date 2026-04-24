@@ -1,5 +1,5 @@
 import jwt from "jsonwebtoken";
-import { query, execute } from "../../../../lib/db.js";
+import { query, execute } from "../../../lib/db.js";
 
 function verifyTokenFromHeader(request) {
   try {
