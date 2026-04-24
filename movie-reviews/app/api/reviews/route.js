@@ -1,52 +1,35 @@
-import { readFile, writeFile } from "fs/promises";
-import path from "path";
-import { fileURLToPath } from "url";
-
-const dbFile = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../data/db.json");
-
-async function readDb() {
-  const file = await readFile(dbFile, "utf8");
-  return JSON.parse(file);
-}
-
-async function writeDb(data) {
-  await writeFile(dbFile, JSON.stringify(data, null, 2), "utf8");
-}
+import jwt from "jsonwebtoken";
+import { query, execute } from "../../../../lib/db.js";
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const movieId = searchParams.get("movieId");
 
-  const db = await readDb();
-  const reviews = Array.isArray(db.reviews) ? db.reviews : [];
+  if (movieId) {
+    const rows = await query(
+      "SELECT id, movie_id AS movieId, user_id AS userId, name, rating, comment, created_at AS createdAt, updated_at AS updatedAt FROM reviews WHERE movie_id = ? ORDER BY created_at DESC",
+      [movieId]
+    );
+    return new Response(JSON.stringify(rows), { headers: { "Content-Type": "application/json" } });
+  }
 
-  const filtered = movieId
-    ? reviews.filter((review) => review.movieId === movieId)
-    : reviews;
-
-  return new Response(JSON.stringify(filtered), {
-    headers: { "Content-Type": "application/json" },
-  });
+  const rows = await query(
+    "SELECT id, movie_id AS movieId, user_id AS userId, name, rating, comment, created_at AS createdAt, updated_at AS updatedAt FROM reviews ORDER BY created_at DESC",
+    []
+  );
+  return new Response(JSON.stringify(rows), { headers: { "Content-Type": "application/json" } });
 }
 
 export async function POST(request) {
   const body = await request.json();
-  const db = await readDb();
-  const reviews = Array.isArray(db.reviews) ? db.reviews : [];
+  const result = await execute(
+    "INSERT INTO reviews (movie_id, user_id, name, rating, comment) VALUES (?, ?, ?, ?, ?)",
+    [body.movieId, null, body.name, Number(body.rating), body.comment]
+  );
 
-  const newReview = {
-    id: Date.now().toString(),
-    movieId: body.movieId,
-    name: body.name,
-    rating: Number(body.rating),
-    comment: body.comment,
-    createdAt: new Date().toISOString(),
-  };
-
-  reviews.push(newReview);
-  await writeDb({ ...db, reviews });
-
-  return new Response(JSON.stringify(newReview), {
-    headers: { "Content-Type": "application/json" },
-  });
+  const inserted = await query(
+    "SELECT id, movie_id AS movieId, user_id AS userId, name, rating, comment, created_at AS createdAt, updated_at AS updatedAt FROM reviews WHERE id = ? LIMIT 1",
+    [result.insertId]
+  );
+  return new Response(JSON.stringify(inserted[0] || {}), { headers: { "Content-Type": "application/json" } });
 }

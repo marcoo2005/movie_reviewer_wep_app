@@ -1,71 +1,67 @@
-import { readFile, writeFile } from "fs/promises";
-import path from "path";
-import { fileURLToPath } from "url";
+import jwt from "jsonwebtoken";
+import { query, execute } from "../../../../lib/db.js";
 
-const dbFile = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../../data/db.json");
-
-async function readDb() {
-  const file = await readFile(dbFile, "utf8");
-  return JSON.parse(file);
-}
-
-async function writeDb(data) {
-  await writeFile(dbFile, JSON.stringify(data, null, 2), "utf8");
+function verifyTokenFromHeader(request) {
+  try {
+    const auth = request.headers.get("authorization") || "";
+    const token = auth.startsWith("Bearer ") ? auth.slice(7) : null;
+    if (!token) return null;
+    const payload = jwt.verify(token, process.env.JWT_SECRET || "dev_jwt_secret");
+    return payload;
+  } catch (err) {
+    return null;
+  }
 }
 
 export async function PUT(request, { params }) {
   const { id } = params;
   const requestId = decodeURIComponent(String(id ?? "")).trim();
   const body = await request.json();
-  const db = await readDb();
-  const reviews = Array.isArray(db.reviews) ? db.reviews : [];
-  const index = reviews.findIndex((review) => {
-    const storedId = String(review.id ?? "").trim();
-    return storedId === requestId || storedId === String(Number(requestId));
-  });
 
-  if (index === -1 || !requestId) {
-    return new Response(JSON.stringify({ message: "Review not found" }), {
-      status: 404,
-      headers: { "Content-Type": "application/json" },
-    });
+  const rows = await query(
+    "SELECT id, movie_id AS movieId, user_id AS userId, name, rating, comment, created_at AS createdAt, updated_at AS updatedAt FROM reviews WHERE id = ? LIMIT 1",
+    [requestId]
+  );
+  if (!rows || rows.length === 0) {
+    return new Response(JSON.stringify({ message: "Review not found" }), { status: 404, headers: { "Content-Type": "application/json" } });
   }
 
-  reviews[index] = {
-    ...reviews[index],
-    name: body.name ?? reviews[index].name,
-    rating: Number(body.rating ?? reviews[index].rating),
-    comment: body.comment ?? reviews[index].comment,
-    updatedAt: new Date().toISOString(),
-  };
+  const review = rows[0];
+  const user = verifyTokenFromHeader(request);
+  if (!user) return new Response(JSON.stringify({ message: "Authentication required" }), { status: 401, headers: { "Content-Type": "application/json" } });
+  if (String(review.userId) !== String(user.id)) {
+    return new Response(JSON.stringify({ message: "Forbidden" }), { status: 403, headers: { "Content-Type": "application/json" } });
+  }
 
-  await writeDb({ ...db, reviews });
+  await execute("UPDATE reviews SET rating = ?, comment = ?, updated_at = NOW() WHERE id = ?", [Number(body.rating ?? review.rating), body.comment ?? review.comment, requestId]);
 
-  return new Response(JSON.stringify(reviews[index]), {
-    headers: { "Content-Type": "application/json" },
-  });
+  const updated = await query(
+    "SELECT id, movie_id AS movieId, user_id AS userId, name, rating, comment, created_at AS createdAt, updated_at AS updatedAt FROM reviews WHERE id = ? LIMIT 1",
+    [requestId]
+  );
+  return new Response(JSON.stringify(updated[0] || {}), { headers: { "Content-Type": "application/json" } });
 }
 
 export async function DELETE(request, { params }) {
   const { id } = params;
   const requestId = decodeURIComponent(String(id ?? "")).trim();
-  const db = await readDb();
-  const reviews = Array.isArray(db.reviews) ? db.reviews : [];
-  const newReviews = reviews.filter((review) => {
-    const storedId = String(review.id ?? "").trim();
-    return storedId !== requestId && storedId !== String(Number(requestId));
-  });
 
-  if (!requestId || newReviews.length === reviews.length) {
-    return new Response(JSON.stringify({ message: "Review not found" }), {
-      status: 404,
-      headers: { "Content-Type": "application/json" },
-    });
+  const rows = await query(
+    "SELECT id, movie_id AS movieId, user_id AS userId, name, rating, comment, created_at AS createdAt, updated_at AS updatedAt FROM reviews WHERE id = ? LIMIT 1",
+    [requestId]
+  );
+  if (!rows || rows.length === 0) {
+    return new Response(JSON.stringify({ message: "Review not found" }), { status: 404, headers: { "Content-Type": "application/json" } });
   }
 
-  await writeDb({ ...db, reviews: newReviews });
+  const review = rows[0];
+  const user = verifyTokenFromHeader(request);
+  if (!user) return new Response(JSON.stringify({ message: "Authentication required" }), { status: 401, headers: { "Content-Type": "application/json" } });
+  if (String(review.userId) !== String(user.id)) {
+    return new Response(JSON.stringify({ message: "Forbidden" }), { status: 403, headers: { "Content-Type": "application/json" } });
+  }
 
-  return new Response(JSON.stringify({ success: true }), {
-    headers: { "Content-Type": "application/json" },
-  });
+  await execute("DELETE FROM reviews WHERE id = ?", [requestId]);
+
+  return new Response(JSON.stringify({ success: true }), { headers: { "Content-Type": "application/json" } });
 }
