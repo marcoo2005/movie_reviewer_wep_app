@@ -38,10 +38,10 @@ export default function LoginPage() {
       <h1 style={{ color: "#fff" }}>Login</h1>
       <form onSubmit={handleSubmit} style={{ maxWidth: 420 }}>
         <div style={{ marginBottom: 12 }}>
-          <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Username" style={{ width: "100%", padding: 10 }} />
+          <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Username" style={{ width: "100%", padding: 10, border: '1px solid #444', borderRadius: 6, background: '#fff', color: '#000' }} />
         </div>
         <div style={{ marginBottom: 12 }}>
-          <input value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" type="password" style={{ width: "100%", padding: 10 }} />
+          <input value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" type="password" style={{ width: "100%", padding: 10, border: '1px solid #444', borderRadius: 6, background: '#fff', color: '#000' }} />
         </div>
         <button type="submit" disabled={loading} style={{ padding: "10px 16px", background: "#22c55e", border: "none", color: "#000" }}>{loading ? "Logging in..." : "Login"}</button>
         {error && <p style={{ color: "#ff6b6b" }}>{error}</p>}

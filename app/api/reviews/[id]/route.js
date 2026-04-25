@@ -14,8 +14,9 @@ async function verifyTokenFromHeader(request) {
 }
 
 export async function PUT(request, { params }) {
-  const { id } = params;
+  const { id } = await params;
   const requestId = decodeURIComponent(String(id ?? "")).trim();
+  console.log('API PUT /api/reviews/:id requestId=', requestId, 'AUTH=', request.headers.get('authorization'));
   const body = await request.json();
 
   const rows = await query(
@@ -43,8 +44,9 @@ export async function PUT(request, { params }) {
 }
 
 export async function DELETE(request, { params }) {
-  const { id } = params;
+  const { id } = await params;
   const requestId = decodeURIComponent(String(id ?? "")).trim();
+  console.log('API DELETE /api/reviews/:id requestId=', requestId, 'AUTH=', request.headers.get('authorization'));
 
   const rows = await query(
     "SELECT id, movie_id AS movieId, user_id AS userId, name, rating, comment, created_at AS createdAt, updated_at AS updatedAt FROM reviews WHERE id = ? LIMIT 1",
