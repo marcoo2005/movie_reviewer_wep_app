@@ -1,11 +1,11 @@
-import jwt from "jsonwebtoken";
 import { query, execute } from "../../../../lib/db.js";
 
-function verifyTokenFromHeader(request) {
+async function verifyTokenFromHeader(request) {
   try {
     const auth = request.headers.get("authorization") || "";
     const token = auth.startsWith("Bearer ") ? auth.slice(7) : null;
     if (!token) return null;
+    const { default: jwt } = await import("jsonwebtoken");
     const payload = jwt.verify(token, process.env.JWT_SECRET || "dev_jwt_secret");
     return payload;
   } catch (err) {
@@ -27,7 +27,7 @@ export async function PUT(request, { params }) {
   }
 
   const review = rows[0];
-  const user = verifyTokenFromHeader(request);
+  const user = await verifyTokenFromHeader(request);
   if (!user) return new Response(JSON.stringify({ message: "Authentication required" }), { status: 401 });
   if (String(review.userId) !== String(user.id)) {
     return new Response(JSON.stringify({ message: "Forbidden" }), { status: 403 });
@@ -55,7 +55,7 @@ export async function DELETE(request, { params }) {
   }
 
   const review = rows[0];
-  const user = verifyTokenFromHeader(request);
+  const user = await verifyTokenFromHeader(request);
   if (!user) return new Response(JSON.stringify({ message: "Authentication required" }), { status: 401 });
   if (String(review.userId) !== String(user.id)) {
     return new Response(JSON.stringify({ message: "Forbidden" }), { status: 403 });

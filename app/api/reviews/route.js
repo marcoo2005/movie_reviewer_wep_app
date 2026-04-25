@@ -1,11 +1,11 @@
-import jwt from "jsonwebtoken";
 import { query, execute } from "../../../lib/db.js";
 
-function verifyTokenFromHeader(request) {
+async function verifyTokenFromHeader(request) {
   try {
     const auth = request.headers.get("authorization") || "";
     const token = auth.startsWith("Bearer ") ? auth.slice(7) : null;
     if (!token) return null;
+    const { default: jwt } = await import("jsonwebtoken");
     const payload = jwt.verify(token, process.env.JWT_SECRET || "dev_jwt_secret");
     return payload;
   } catch (err) {
@@ -34,7 +34,7 @@ export async function GET(request) {
 
 export async function POST(request) {
   const body = await request.json();
-  const user = verifyTokenFromHeader(request);
+  const user = await verifyTokenFromHeader(request);
   if (!user) {
     return new Response(JSON.stringify({ message: "Authentication required" }), { status: 401, headers: { "Content-Type": "application/json" } });
   }

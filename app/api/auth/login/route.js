@@ -1,5 +1,4 @@
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
 import { query } from "../../../../lib/db.js";
 
 export async function POST(request) {
@@ -16,6 +15,7 @@ export async function POST(request) {
   const ok = await bcrypt.compare(password, user.password_hash);
   if (!ok) return new Response(JSON.stringify({ message: "Invalid credentials" }), { status: 401 });
 
+  const { default: jwt } = await import("jsonwebtoken");
   const token = jwt.sign({ id: user.id, username }, process.env.JWT_SECRET || "dev_jwt_secret", { expiresIn: "7d" });
 
   return new Response(JSON.stringify({ token, user: { id: user.id, username } }), { headers: { "Content-Type": "application/json" } });

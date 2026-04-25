@@ -1,4 +1,3 @@
-import jwt from "jsonwebtoken";
 import { query, execute } from "../../../../lib/db.js";
 
 export async function GET(request) {
